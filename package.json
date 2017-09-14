@@ -1,0 +1,26 @@
+{
+  "name": "countries-cities",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.17.2",
+    "express": "^4.15.4",
+    "express-jwt": "^5.3.0",
+    "express-ws": "^3.0.0",
+    "express.io": "^1.1.13",
+    "http": "0.0.0",
+    "jsonwebtoken": "^8.0.1",
+    "mongoose": "^4.11.9",
+    "socket.io": "^2.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^1.11.0"
+  }
+}
