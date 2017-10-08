@@ -12,7 +12,7 @@ const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
 
-server.listen(3000);
+server.listen(process.env.PORT);
 
 server.on('close', () => {
   console.log('server closed');
