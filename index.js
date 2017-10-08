@@ -1,64 +1,27 @@
+const countries = require('./countries');
+const cities = require('./cities');
+
 const events = require('events');
 const express = require('express');
-// const expressJwt = require('express-jwt');
 const jwt = require('jsonwebtoken');
 
 const bodyParser = require('body-parser');
-const Player = require('./db').Player;
-const Game = require('./db').Game;
+
 
 const app = express();
+const server = require('http').Server(app);
+const io = require('socket.io')(server);
 
-const ws = require('express-ws')(app);
+server.listen(3000);
+
+server.on('close', () => {
+  console.log('server closed');
+});
 
 const secret = 'shhh';
 
 const apiRoutes = express.Router();
 
-apiRoutes.use((req, res, next) => {
-
-  console.log('routes middleware req', req);
-
-  // check header or url parameters or post parameters for token
-  let token;
-
-  if (req.body) {
-    token = req.body.token;
-  }
-
-  if (req.query) {
-    token = req.query.token;
-  }
-
-  if (req.headers) {
-    token = req.headers['x-access-token'];
-  }
-
-  console.log('token', token);
-
-  if (token) {
-
-    console.log('verifying', token);
-
-    jwt.verify(token, secret, (err, decoded) => {
-
-      if (err) {
-        console.log('failed to authenticate token');
-      } else {
-
-        console.log('all good, I tell ya');
-
-        req.decoded = decoded;
-
-        next();
-      }
-
-    })
-  } else {
-    console.log('nah, no token');
-  }
-
-});
 
 app.use('/api/players', apiRoutes);
 app.use('/api/game', apiRoutes);
@@ -69,15 +32,13 @@ app.use(function(req, res, next) {
   return next();
 });
 
-// app.use(expressJwt({secret: secret}).unless({path: ['/api/player']}));
-
 const playersChanged = new events.EventEmitter();
 const newGame = new events.EventEmitter();
 
 let playersRegistered = [];
 let gameOngoing;
 
-app.all('/api/player', function(req, res, next) {
+app.all('/api/*', function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type");
   next();
@@ -90,7 +51,11 @@ app.get('/', function(req, res) {
 
 app.post('/api/player', (req, res) => {
 
-  console.log('post came', req.body.id);
+  if(req.body.password !== 'pracuj456$') {
+    res.status(401).send();
+    return;
+  }
+
   if (playersRegistered.filter((p) => p.id === req.body.id).length) {
     res.status(400).send('user with this name already exists');
     return;
@@ -100,128 +65,133 @@ app.post('/api/player', (req, res) => {
   playersChanged.emit('playersChanged', false);
 
   res.status(200).send({token: jwt.sign(req.body.id, secret)});
-
-  //
-  // Player.create({id: req.body.id}, () => {
-  //   // todo: handle errors
-  //   playersChanged.emit('playersChanged', false);
-  //   res.send('kay');
-  // });
 });
 
-app.ws('/api/players', function(ws, req) {
+app.post('/api/game/play/answer', (req, res) => {
 
+  const player = playersRegistered.filter((p) => {
+    return p.id === req.body.playerId;
+  })[0];
 
-  const returnAllPlayers = (callback) => {
-    // Player.find({}, (error, players) => {
-    console.log('restsdfzsdf');
-    if (ws.readyState === 1) {
-      console.log('return playas');
-      ws.send(JSON.stringify(playersRegistered));
+  if (!player) {
+    res.status(400).send('player with this playerId doesn\'t play');
+    return;
+  }
+
+  gameOngoing.plays = gameOngoing.plays.map((play) => {
+    if (play.playerId === req.body.playerId) {
+      play.answer = req.body.answer;
     }
-    // });
-  };
-
-  const playersChangedHandler = (value) => {
-    returnAllPlayers();
-  };
-
-  const teardownWSPlayersConnection = () => {
-    playersChanged.removeListener('playersChanged', playersChangedHandler)
-  };
-
-  playersChanged.on('playersChanged', playersChangedHandler);
-
-  ws.on('message', function(msg) {
-    returnAllPlayers();
+    return play;
   });
-  returnAllPlayers();
 
-  ws.on('close', () => {
-    console.log('ws closed');
-    teardownWSPlayersConnection();
+  res.status(200).send();
+
+});
+
+io.on('connection', function(socket) {
+
+  console.log('socket connected');
+
+  socket.emit('message', {
+    type: 'player',
+    body: {
+      players: playersRegistered
+    }
+  });
+
+  playersChanged.on('playersChanged', (v) => {
+    socket.emit('message', {
+      type: 'player',
+      body: {
+        players: playersRegistered
+      }
+    });
+  });
+
+  newGame.on('gameChanged', (game) => {
+    socket.emit('message', {
+      type: 'game',
+      body: {
+        game: game
+      }
+    });
+  });
+
+  newGame.on('gameSolved', (game) => {
+    socket.emit('message', {
+      type: 'solution',
+      body: {
+        game: game
+      }
+    })
   })
 });
 
-app.ws('/api/game', (ws, req) => {
 
-  console.log('game');
-
-  const onNewGame = (game) => {
-    console.log(game);
-    if (ws.readyState === 1) {
-      ws.send(JSON.stringify(game));
-    }
-  };
-
-  newGame.on('gameChanged', onNewGame);
-
-  const returnCurrentGame = () => {
-
-    if (ws.readyState === 1 && gameOngoing) {
-      ws.send(JSON.stringify(gameOngoing));
-    }
-    // Game.findOne({ongoing: true}, (error, game) => {
-    //   if (ws.readyState === 1) {
-    //     ws.send(JSON.stringify(game))
-    //   }
-    // })
-  };
-
-  ws.on('message', function(msg) {
-    returnCurrentGame();
-  });
-
-  returnCurrentGame();
-
-  ws.on('close', () => {
-    newGame.removeListener('gameChanged', onNewGame)
-  })
-
-});
-
-const server = app.listen(3000, () => {
-  console.log('server started')
-});
-
-server.on('close', () => {
-  console.log('server closed');
-});
-
-setInterval(() => {
-
-  // stop all games
-  // Game.update(
-  //   {},
-  //   {$set: {ongoing: false}},
-  //   {multi: true},
-  //   (errors, result) => {
-  //     console.log(errors, result);
-  //   }
-  // );
-
-  // create a new game
-  // const players = Player.find({}, (error, result) => {
-  //   //
-  // });
-
-
+const createNewGame = () => {
   const plays = playersRegistered.map((p) => {
     return {
       playerId: p.id,
-      answer: 'dunno'
+      answer: '?',
+      points: 0
     }
   });
 
   if (plays.length) {
+
+    const alphabet = 'ABCDEFGHIJKLMNOPRSTUWVZŹŻ';
+    const category = Math.random() > .5 ? 'country' : 'city';
+    const letter = alphabet.charAt(Math.random() * alphabet.length);
+
     gameOngoing = {
       plays: plays,
-      question: Math.random() > .5 ? 'name a country starting with letter A' : 'name a city starting with letter M',
+      category: category,
+      letter: letter,
+      question: category === 'country' ? 'podaj kraj na literę ' + letter : 'podaj miasto w Polsce na literę ' + letter,
       ongoing: true,
       createdAt: new Date()
     };
 
     newGame.emit('gameChanged', gameOngoing);
   }
+};
 
-}, 7000);
+const solveGame = () => {
+
+  if (gameOngoing) {
+
+    console.log(gameOngoing.plays);
+
+    gameOngoing.plays = gameOngoing.plays.map((play) => {
+
+      if (play.answer.charAt(0).toUpperCase() !== gameOngoing.letter.toUpperCase()) {
+        return play;
+      }
+
+      if (gameOngoing.category === 'country') {
+        countries.filter(country => {
+          if (play.answer.toUpperCase() === country.name_pl.toUpperCase()) {
+            play.points = 1;
+          }
+        });
+      } else if (gameOngoing.category === 'city') {
+        cities.filter(city => {
+          if(play.answer.toUpperCase() === city.toUpperCase()) {
+            play.points = 1;
+          }
+        })
+      }
+
+      return play;
+    });
+
+    newGame.emit('gameSolved', gameOngoing)
+  }
+
+  setTimeout(createNewGame, 3000)
+};
+
+setInterval(() => {
+  solveGame()
+}, 12000);
