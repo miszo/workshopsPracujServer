@@ -613,7 +613,7 @@ module.exports = [
   "Radków",
   "Radlin",
   "Radłów",
-  "Radom",
+    "Radom",
   "Radomsko",
   "Radomyśl Wielki",
   "Radymno",

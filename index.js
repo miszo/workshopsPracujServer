@@ -3,6 +3,7 @@ const cities = require('./cities');
 
 const events = require('events');
 const express = require('express');
+const expressJwt = require('express-jwt');
 const jwt = require('jsonwebtoken');
 
 const bodyParser = require('body-parser');
@@ -11,6 +12,14 @@ const bodyParser = require('body-parser');
 const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
+
+const utils = require('./utils');
+
+const gameEvents = require('./gameEvents');
+
+// in miliseconds
+const gameLength = 10000;
+const timeBetweenGames = 3000;
 
 server.listen(process.env.PORT);
 
@@ -40,7 +49,7 @@ let gameOngoing;
 
 app.all('/api/*', function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type");
+  res.header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization");
   next();
 });
 
@@ -51,7 +60,7 @@ app.get('/', function(req, res) {
 
 app.post('/api/player', (req, res) => {
 
-  if(req.body.password !== 'pracuj456$') {
+  if (req.body.password !== 'pracuj456$') {
     res.status(401).send();
     return;
   }
@@ -61,35 +70,52 @@ app.post('/api/player', (req, res) => {
     return;
   }
 
-  playersRegistered.push({id: req.body.id});
-  playersChanged.emit('playersChanged', false);
+  const newPlayer = {
+    id: req.body.id,
+    token: jwt.sign(req.body.id, secret),
+    expires: utils.generatePlayerExpirationDate()
+  };
 
-  res.status(200).send({token: jwt.sign(req.body.id, secret)});
+  playersRegistered.push(newPlayer);
+  playersChanged.emit(gameEvents.PLAYERS_CHANGED, false);
+
+  res.status(200).send(newPlayer);
 });
 
-app.post('/api/game/play/answer', (req, res) => {
+app.post('/api/game/play/answer',
+  expressJwt({secret: secret}),
+  (req, res) => {
 
-  const player = playersRegistered.filter((p) => {
-    return p.id === req.body.playerId;
-  })[0];
+    console.log(req.header('Authorization'));
 
-  if (!player) {
-    res.status(400).send('player with this playerId doesn\'t play');
-    return;
-  }
+    const player = playersRegistered.filter((p) => {
+      return p.id === req.body.playerId;
+    })[0];
 
-  gameOngoing.plays = gameOngoing.plays.map((play) => {
-    if (play.playerId === req.body.playerId) {
-      play.answer = req.body.answer;
+    if (!player) {
+      res.status(400).send('player with this playerId doesn\'t play');
+      return;
     }
-    return play;
+
+    player.expires = utils.generatePlayerExpirationDate();
+
+    if (gameOngoing) {
+
+      gameOngoing.plays = gameOngoing.plays.map((play) => {
+        if (play.playerId === req.body.playerId) {
+          play.answer = req.body.answer;
+        }
+        return play;
+      });
+    } else {
+      res.status(400).send('no game ongoing right now')
+    }
+
+    res.status(200).send();
+
   });
 
-  res.status(200).send();
-
-});
-
-io.on('connection', function(socket) {
+io.on('connection', (socket) => {
 
   console.log('socket connected');
 
@@ -100,7 +126,7 @@ io.on('connection', function(socket) {
     }
   });
 
-  playersChanged.on('playersChanged', (v) => {
+  playersChanged.on(gameEvents.PLAYERS_CHANGED, (v) => {
     socket.emit('message', {
       type: 'player',
       body: {
@@ -109,7 +135,7 @@ io.on('connection', function(socket) {
     });
   });
 
-  newGame.on('gameChanged', (game) => {
+  newGame.on(gameEvents.GAME_CHANGED, (game) => {
     socket.emit('message', {
       type: 'game',
       body: {
@@ -118,7 +144,7 @@ io.on('connection', function(socket) {
     });
   });
 
-  newGame.on('gameSolved', (game) => {
+  newGame.on(gameEvents.GAME_SOLVED, (game) => {
     socket.emit('message', {
       type: 'solution',
       body: {
@@ -140,17 +166,21 @@ const createNewGame = () => {
 
   if (plays.length) {
 
-    const alphabet = 'ABCDEFGHIJKLMNOPRSTUWVZŹŻ';
+    const alphabet = 'ABCDEFGHIJKLŁMNOPRSTUWZŻ';
     const category = Math.random() > .5 ? 'country' : 'city';
     const letter = alphabet.charAt(Math.random() * alphabet.length);
+
+    const endsOn = new Date();
+    endsOn.setSeconds(endsOn.getSeconds() + gameLength);
 
     gameOngoing = {
       plays: plays,
       category: category,
       letter: letter,
-      question: category === 'country' ? 'podaj kraj na literę ' + letter : 'podaj miasto w Polsce na literę ' + letter,
+      question: category === 'country' ? 'podaj państwo na literę ' + letter : 'podaj miasto w Polsce na literę ' + letter,
       ongoing: true,
-      createdAt: new Date()
+      createdAt: new Date(),
+      endsOn: endsOn
     };
 
     newGame.emit('gameChanged', gameOngoing);
@@ -165,7 +195,7 @@ const solveGame = () => {
 
     gameOngoing.plays = gameOngoing.plays.map((play) => {
 
-      if (play.answer.charAt(0).toUpperCase() !== gameOngoing.letter.toUpperCase()) {
+      if (play.answer.trim().charAt(0).toUpperCase() !== gameOngoing.letter.toUpperCase()) {
         return play;
       }
 
@@ -177,21 +207,43 @@ const solveGame = () => {
         });
       } else if (gameOngoing.category === 'city') {
         cities.filter(city => {
-          if(play.answer.toUpperCase() === city.toUpperCase()) {
+          if (play.answer.toUpperCase() === city.toUpperCase()) {
             play.points = 1;
           }
         })
       }
 
+      if (utils.checkAnswerCorrectness(play.answer, gameOngoing.category)) {
+        play.points = 1;
+      }
+
       return play;
     });
 
-    newGame.emit('gameSolved', gameOngoing)
+    newGame.emit(gameEvents.GAME_SOLVED, gameOngoing)
   }
 
-  setTimeout(createNewGame, 3000)
+  setTimeout(createNewGame, timeBetweenGames)
 };
+
+const removeInactivePlayers = () => {
+
+  const playersNum = playersRegistered.length;
+  playersRegistered = playersRegistered.filter((player) => {
+
+    return new Date() <= player.expires;
+  });
+
+  if (playersNum !== playersRegistered.length) {
+    playersChanged.emit(gameEvents.PLAYERS_CHANGED);
+  }
+};
+
+
+setInterval(() => {
+  removeInactivePlayers();
+}, 20000);
 
 setInterval(() => {
   solveGame()
-}, 12000);
+}, gameLength + timeBetweenGames);
