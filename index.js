@@ -41,6 +41,27 @@ app.use(function(req, res, next) {
   return next();
 });
 
+// will print stacktrace
+if (app.get('env') === 'development') {
+  app.use(function(err, req, res, next) {
+    res.status(err.status || 500);
+    res.render('error', {
+      message: err.message,
+      error: err
+    });
+  });
+}
+
+// production error handler
+// no stacktraces leaked to user
+app.use(function(err, req, res, next) {
+  res.status(err.status || 500);
+  res.render('error', {
+    message: err.message,
+    error: {}
+  });
+});
+
 const playersChanged = new events.EventEmitter();
 const newGame = new events.EventEmitter();
 
@@ -79,6 +100,10 @@ app.post('/api/player', (req, res) => {
   playersRegistered.push(newPlayer);
   playersChanged.emit(gameEvents.PLAYERS_CHANGED, false);
 
+  if (playersRegistered.length === 1 && !gameOngoing) {
+    createNewGame();
+  }
+
   res.status(200).send(newPlayer);
 });
 
@@ -115,9 +140,14 @@ app.post('/api/game/play/answer',
 
   });
 
+// keep array of sockets
+const sockets = [];
+
 io.on('connection', (socket) => {
 
   console.log('socket connected');
+
+  sockets.push(socket);
 
   socket.emit('message', {
     type: 'player',
@@ -126,7 +156,20 @@ io.on('connection', (socket) => {
     }
   });
 
-  playersChanged.on(gameEvents.PLAYERS_CHANGED, (v) => {
+  if (gameOngoing) {
+    socket.emit('message', {
+      type: 'game',
+      body: {
+        game: gameOngoing
+      }
+    });
+  }
+}, (e) => {
+  console.log('whats this', e)
+});
+
+playersChanged.on(gameEvents.PLAYERS_CHANGED, (v) => {
+  sockets.forEach((socket) => {
     socket.emit('message', {
       type: 'player',
       body: {
@@ -134,8 +177,11 @@ io.on('connection', (socket) => {
       }
     });
   });
+});
 
-  newGame.on(gameEvents.GAME_CHANGED, (game) => {
+newGame.on(gameEvents.GAME_CHANGED, (game) => {
+
+  sockets.forEach((socket) => {
     socket.emit('message', {
       type: 'game',
       body: {
@@ -143,17 +189,19 @@ io.on('connection', (socket) => {
       }
     });
   });
+});
 
-  newGame.on(gameEvents.GAME_SOLVED, (game) => {
+newGame.on(gameEvents.GAME_SOLVED, (game) => {
+
+  sockets.forEach((socket) => {
     socket.emit('message', {
       type: 'solution',
       body: {
         game: game
       }
     })
-  })
+  });
 });
-
 
 const createNewGame = () => {
   const plays = playersRegistered.map((p) => {
@@ -164,6 +212,8 @@ const createNewGame = () => {
     }
   });
 
+  console.log('create new game', plays.length);
+
   if (plays.length) {
 
     const alphabet = 'ABCDEFGHIJKLŁMNOPRSTUWZŻ';
@@ -171,7 +221,8 @@ const createNewGame = () => {
     const letter = alphabet.charAt(Math.random() * alphabet.length);
 
     const endsOn = new Date();
-    endsOn.setSeconds(endsOn.getSeconds() + gameLength);
+    console.log(endsOn);
+    endsOn.setSeconds(endsOn.getSeconds() + gameLength / 1000);
 
     gameOngoing = {
       plays: plays,
@@ -183,47 +234,50 @@ const createNewGame = () => {
       endsOn: endsOn
     };
 
-    newGame.emit('gameChanged', gameOngoing);
+    newGame.emit(gameEvents.GAME_CHANGED, gameOngoing);
   }
+
+  setTimeout(() => solveGame(gameOngoing), gameLength);
 };
 
-const solveGame = () => {
+const solveGame = (game) => {
 
-  if (gameOngoing) {
+  game.plays = game.plays.map((play) => {
 
-    console.log(gameOngoing.plays);
-
-    gameOngoing.plays = gameOngoing.plays.map((play) => {
-
-      if (play.answer.trim().charAt(0).toUpperCase() !== gameOngoing.letter.toUpperCase()) {
-        return play;
-      }
-
-      if (gameOngoing.category === 'country') {
-        countries.filter(country => {
-          if (play.answer.toUpperCase() === country.name_pl.toUpperCase()) {
-            play.points = 1;
-          }
-        });
-      } else if (gameOngoing.category === 'city') {
-        cities.filter(city => {
-          if (play.answer.toUpperCase() === city.toUpperCase()) {
-            play.points = 1;
-          }
-        })
-      }
-
-      if (utils.checkAnswerCorrectness(play.answer, gameOngoing.category)) {
-        play.points = 1;
-      }
-
+    if (play.answer.trim().charAt(0).toUpperCase() !== game.letter.toUpperCase()) {
       return play;
-    });
+    }
 
-    newGame.emit(gameEvents.GAME_SOLVED, gameOngoing)
+    if (game.category === 'country') {
+      countries.filter(country => {
+        if (play.answer.toUpperCase() === country.name_pl.toUpperCase()) {
+          play.points = 1;
+        }
+      });
+    } else if (game.category === 'city') {
+      cities.filter(city => {
+        if (play.answer.toUpperCase() === city.toUpperCase()) {
+          play.points = 1;
+        }
+      })
+    }
+
+    if (utils.checkAnswerCorrectness(play.answer, game.category)) {
+      play.points = 1;
+    }
+
+    return play;
+  });
+
+  newGame.emit(gameEvents.GAME_SOLVED, game);
+
+
+  if (playersRegistered.length) {
+    setTimeout(() => {
+      gameOngoing = null;
+      createNewGame()
+    }, timeBetweenGames)
   }
-
-  setTimeout(createNewGame, timeBetweenGames)
 };
 
 const removeInactivePlayers = () => {
@@ -242,8 +296,4 @@ const removeInactivePlayers = () => {
 
 setInterval(() => {
   removeInactivePlayers();
-}, 20000);
-
-setInterval(() => {
-  solveGame()
-}, gameLength + timeBetweenGames);
+}, 200000);
