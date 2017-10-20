@@ -100,6 +100,8 @@ app.post('/api/player', (req, res) => {
   playersRegistered.push(newPlayer);
   playersChanged.emit(gameEvents.PLAYERS_CHANGED, false);
 
+  console.log('player registered', playersRegistered.length, gameOngoing);
+
   if (playersRegistered.length === 1 && !gameOngoing) {
     createNewGame();
   }
@@ -271,13 +273,14 @@ const solveGame = (game) => {
 
   newGame.emit(gameEvents.GAME_SOLVED, game);
 
+  setTimeout(() => {
 
-  if (playersRegistered.length) {
-    setTimeout(() => {
-      gameOngoing = null;
+    gameOngoing = null;
+
+    if (playersRegistered.length) {
       createNewGame()
-    }, timeBetweenGames)
-  }
+    }
+  }, timeBetweenGames)
 };
 
 const removeInactivePlayers = () => {
