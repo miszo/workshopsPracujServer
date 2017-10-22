@@ -4,6 +4,7 @@ const cities = require('./cities');
 const events = require('events');
 const express = require('express');
 const expressJwt = require('express-jwt');
+const socketioJwt = require('socketio-jwt');
 const jwt = require('jsonwebtoken');
 
 const bodyParser = require('body-parser');
@@ -12,6 +13,7 @@ const bodyParser = require('body-parser');
 const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
+
 
 const utils = require('./utils');
 
@@ -28,6 +30,33 @@ server.on('close', () => {
 });
 
 const secret = 'shhh';
+
+const socketAuthorize = socketioJwt.authorize({
+  secret: secret,
+  handshake: true
+});
+
+io.use(function(socket, next) {
+  const handshakeData = socket.request;
+
+  socketAuthorize(handshakeData, (data, success) => {
+    if (success) {
+      socket.payload = handshakeData.decoded_token;
+
+      const playerIsRegistered = !!playersRegistered.filter((player) => {
+        return player.id === handshakeData.decoded_token;
+      })[0];
+
+      if (playerIsRegistered) {
+        next();
+      } else {
+        next(new Error('not a doge'))
+      }
+    } else {
+      //
+    }
+  });
+});
 
 const apiRoutes = express.Router();
 
@@ -65,7 +94,8 @@ app.use(function(err, req, res, next) {
 const playersChanged = new events.EventEmitter();
 const newGame = new events.EventEmitter();
 
-let playersRegistered = [];
+let playersActive = [];
+const playersRegistered = [];
 let gameOngoing;
 
 app.all('/api/*', function(req, res, next) {
@@ -94,15 +124,15 @@ app.post('/api/player', (req, res) => {
   const newPlayer = {
     id: req.body.id,
     token: jwt.sign(req.body.id, secret),
-    expires: utils.generatePlayerExpirationDate()
+    expires: utils.generatePlayerExpirationDate(),
+    points: 0
   };
 
   playersRegistered.push(newPlayer);
+  playersActive.push(newPlayer);
   playersChanged.emit(gameEvents.PLAYERS_CHANGED, false);
 
-  console.log('player registered', playersRegistered.length, gameOngoing);
-
-  if (playersRegistered.length === 1 && !gameOngoing) {
+  if (playersActive.length === 1 && !gameOngoing) {
     createNewGame();
   }
 
@@ -113,9 +143,7 @@ app.post('/api/game/play/answer',
   expressJwt({secret: secret}),
   (req, res) => {
 
-    console.log(req.header('Authorization'));
-
-    const player = playersRegistered.filter((p) => {
+    const player = playersActive.filter((p) => {
       return p.id === req.body.playerId;
     })[0];
 
@@ -147,14 +175,16 @@ const sockets = [];
 
 io.on('connection', (socket) => {
 
-  console.log('socket connected');
+  if (!playerIsActive(socket.request.decoded_token)) {
+    activatePlayer(socket.request.decoded_token);
+  }
 
   sockets.push(socket);
 
   socket.emit('message', {
     type: 'player',
     body: {
-      players: playersRegistered
+      players: playersActive
     }
   });
 
@@ -166,8 +196,11 @@ io.on('connection', (socket) => {
       }
     });
   }
-}, (e) => {
-  console.log('whats this', e)
+
+  socket.on('disconnect', function() {
+    let i = sockets.indexOf(socket);
+    sockets.splice(i, 1);
+  });
 });
 
 playersChanged.on(gameEvents.PLAYERS_CHANGED, (v) => {
@@ -175,7 +208,7 @@ playersChanged.on(gameEvents.PLAYERS_CHANGED, (v) => {
     socket.emit('message', {
       type: 'player',
       body: {
-        players: playersRegistered
+        players: playersActive
       }
     });
   });
@@ -206,15 +239,12 @@ newGame.on(gameEvents.GAME_SOLVED, (game) => {
 });
 
 const createNewGame = () => {
-  const plays = playersRegistered.map((p) => {
+  const plays = playersActive.map((p) => {
     return {
       playerId: p.id,
-      answer: '?',
-      points: 0
+      answer: '?'
     }
   });
-
-  console.log('create new game', plays.length);
 
   if (plays.length) {
 
@@ -223,7 +253,6 @@ const createNewGame = () => {
     const letter = alphabet.charAt(Math.random() * alphabet.length);
 
     const endsOn = new Date();
-    console.log(endsOn);
     endsOn.setSeconds(endsOn.getSeconds() + gameLength / 1000);
 
     gameOngoing = {
@@ -245,6 +274,8 @@ const createNewGame = () => {
 const solveGame = (game) => {
 
   game.plays = game.plays.map((play) => {
+
+    play.points = 0;
 
     if (play.answer.trim().charAt(0).toUpperCase() !== game.letter.toUpperCase()) {
       return play;
@@ -271,27 +302,57 @@ const solveGame = (game) => {
     return play;
   });
 
+  playersActive = playersActive.map((player) => {
+    const play = game.plays.filter((play) => {
+      return play.playerId === player.id;
+    })[0];
+
+    if (play) {
+      player.points += play.points;
+    }
+
+    return player;
+  });
+
+  playersChanged.emit(gameEvents.PLAYERS_CHANGED);
   newGame.emit(gameEvents.GAME_SOLVED, game);
 
   setTimeout(() => {
 
     gameOngoing = null;
 
-    if (playersRegistered.length) {
+    if (playersActive.length) {
       createNewGame()
     }
   }, timeBetweenGames)
 };
 
+const activatePlayer = (playerId) => {
+
+  const player = playersRegistered.filter((player) => {
+    return player.id === playerId;
+  })[0];
+
+  if (player) {
+    playersActive.push(player);
+  }
+};
+
+const playerIsActive = (playerId) => {
+  return !!playersActive.filter((player) => {
+    return player.id === playerId;
+  })[0];
+};
+
 const removeInactivePlayers = () => {
 
-  const playersNum = playersRegistered.length;
-  playersRegistered = playersRegistered.filter((player) => {
+  const playersNum = playersActive.length;
+  playersActive = playersActive.filter((player) => {
 
     return new Date() <= player.expires;
   });
 
-  if (playersNum !== playersRegistered.length) {
+  if (playersNum !== playersActive.length) {
     playersChanged.emit(gameEvents.PLAYERS_CHANGED);
   }
 };

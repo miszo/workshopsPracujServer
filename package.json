@@ -19,7 +19,8 @@
     "http": "0.0.0",
     "jsonwebtoken": "^8.0.1",
     "mongoose": "^4.11.9",
-    "socket.io": "^2.0.3"
+    "socket.io": "^2.0.3",
+    "socketio-jwt": "^4.5.0"
   },
   "devDependencies": {
     "nodemon": "^1.11.0"

@@ -4,6 +4,7 @@
     <list default="true" id="a17570e2-330b-4e0b-9e17-03c0b7c75286" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/index.js" afterPath="$PROJECT_DIR$/index.js" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/package.json" afterPath="$PROJECT_DIR$/package.json" />
     </list>
     <ignored path="$PROJECT_DIR$/.tmp/" />
     <ignored path="$PROJECT_DIR$/temp/" />
@@ -20,7 +21,7 @@
       <file leaf-file-name="db.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/db.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="272">
+            <state relative-caret-position="0">
               <caret line="16" column="0" lean-forward="false" selection-start-line="16" selection-start-column="0" selection-end-line="16" selection-end-column="0" />
               <folding />
             </state>
@@ -30,8 +31,8 @@
       <file leaf-file-name="index.js" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/index.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="408">
-              <caret line="267" column="22" lean-forward="true" selection-start-line="267" selection-start-column="22" selection-end-line="267" selection-end-column="22" />
+            <state relative-caret-position="304">
+              <caret line="28" column="9" lean-forward="false" selection-start-line="28" selection-start-column="2" selection-end-line="28" selection-end-column="9" />
               <folding />
             </state>
           </provider>
@@ -60,18 +61,8 @@
       <file leaf-file-name="cities.js" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/cities.js">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="10268">
-              <caret line="604" column="12" lean-forward="false" selection-start-line="604" selection-start-column="12" selection-end-line="604" selection-end-column="12" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="countries.js" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/countries.js">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+            <state relative-caret-position="243">
+              <caret line="570" column="18" lean-forward="false" selection-start-line="570" selection-start-column="18" selection-end-line="570" selection-end-column="18" />
               <folding />
             </state>
           </provider>
@@ -80,8 +71,8 @@
       <file leaf-file-name="package.json" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/package.json">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="408">
-              <caret line="24" column="24" lean-forward="true" selection-start-line="24" selection-start-column="24" selection-end-line="24" selection-end-column="24" />
+            <state relative-caret-position="425">
+              <caret line="25" column="24" lean-forward="false" selection-start-line="25" selection-start-column="24" selection-end-line="25" selection-end-column="24" />
               <folding />
             </state>
           </provider>
@@ -98,26 +89,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>open</find>
-      <find>find</find>
-      <find>Event</find>
-      <find>console</find>
-      <find>app.ws</find>
-      <find>secret</find>
-      <find>sign</find>
-      <find>dunno</find>
-      <find>consol</find>
-      <find>Ląd</find>
-      <find>Radom</find>
-      <find>genera</find>
-      <find>gene</find>
-      <find>com</find>
-      <find>check</find>
-      <find>gameSolved</find>
-      <find>.emit</find>
-      <find>playersCha</find>
-      <find>socket</find>
-      <find>playersC</find>
       <find>createNewGame</find>
       <find>ends</find>
       <find>game</find>
@@ -128,10 +99,32 @@
       <find>setT</find>
       <find>solve</find>
       <find>gameOngoing</find>
+      <find>koso</find>
+      <find>usa</find>
+      <find>Kurdys</find>
+      <find>imor</find>
+      <find>playersRe</find>
+      <find>solv</find>
+      <find>playersRegistered</find>
+      <find>decodedPropertyName</find>
+      <find>onJwtVerificationReady</find>
+      <find>decoded_</find>
+      <find>option</find>
+      <find>data[option</find>
+      <find>Got</find>
+      <find>conn</find>
+      <find>activateUser</find>
+      <find>playerIsActive</find>
+      <find>points</find>
+      <find>c</find>
+      <find>con</find>
+      <find>console</find>
     </findStrings>
     <replaceStrings>
       <replace>const</replace>
       <replace>game</replace>
+      <replace>playersActive</replace>
+      <replace>activatePlayer</replace>
     </replaceStrings>
   </component>
   <component name="Git.Settings">
@@ -149,6 +142,7 @@
         <option value="$PROJECT_DIR$/utils.js" />
         <option value="$PROJECT_DIR$/gameEvents.js" />
         <option value="$PROJECT_DIR$/package.json" />
+        <option value="$PROJECT_DIR$/node_modules/socketio-jwt/lib/index.js" />
         <option value="$PROJECT_DIR$/index.js" />
       </list>
     </option>
@@ -172,9 +166,10 @@
     <handled-path value="$PROJECT_DIR$/node_modules" />
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="-1930" />
-    <option name="width" value="1289" />
-    <option name="height" value="696" />
+    <option name="x" value="-11" />
+    <option name="y" value="-11" />
+    <option name="width" value="1942" />
+    <option name="height" value="1056" />
   </component>
   <component name="ProjectInspectionProfilesVisibleTreeState">
     <entry key="Project Default">
@@ -207,7 +202,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
@@ -220,6 +214,7 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -271,15 +266,17 @@
       <workItem from="1508083979745" duration="3606000" />
       <workItem from="1508091268573" duration="4811000" />
       <workItem from="1508348723913" duration="10865000" />
-      <workItem from="1508511011878" duration="1677000" />
+      <workItem from="1508511011878" duration="1711000" />
+      <workItem from="1508578914942" duration="605000" />
+      <workItem from="1508589116450" duration="9726000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="77782000" />
+    <option name="totallyTimeSpent" value="88147000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-1931" y="-11" width="1942" height="1072" extended-state="6" />
+    <frame x="-11" y="-11" width="1942" height="1056" extended-state="6" />
     <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.16438356" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
@@ -312,13 +309,6 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/.gitignore">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="425">
-          <caret line="25" column="6" lean-forward="false" selection-start-line="25" selection-start-column="6" selection-end-line="25" selection-end-column="6" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/node_modules/express/index.js">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="153">
@@ -628,24 +618,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/db.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="272">
-          <caret line="16" column="0" lean-forward="false" selection-start-line="16" selection-start-column="0" selection-end-line="16" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/countries.js">
-      <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/cities.js">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="10268">
-          <caret line="604" column="12" lean-forward="false" selection-start-line="604" selection-start-column="12" selection-end-line="604" selection-end-column="12" />
+          <caret line="16" column="0" lean-forward="false" selection-start-line="16" selection-start-column="0" selection-end-line="16" selection-end-column="0" />
           <folding />
         </state>
       </provider>
@@ -666,18 +640,42 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/countries.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="399">
+          <caret line="40" column="21" lean-forward="false" selection-start-line="40" selection-start-column="14" selection-end-line="40" selection-end-column="21" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/cities.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="243">
+          <caret line="570" column="18" lean-forward="false" selection-start-line="570" selection-start-column="18" selection-end-line="570" selection-end-column="18" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/package.json">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="408">
-          <caret line="24" column="24" lean-forward="true" selection-start-line="24" selection-start-column="24" selection-end-line="24" selection-end-column="24" />
+        <state relative-caret-position="425">
+          <caret line="25" column="24" lean-forward="false" selection-start-line="25" selection-start-column="24" selection-end-line="25" selection-end-column="24" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/node_modules/socketio-jwt/lib/index.js">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="278">
+          <caret line="175" column="0" lean-forward="true" selection-start-line="175" selection-start-column="0" selection-end-line="175" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/index.js">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="408">
-          <caret line="267" column="22" lean-forward="true" selection-start-line="267" selection-start-column="22" selection-end-line="267" selection-end-column="22" />
+        <state relative-caret-position="304">
+          <caret line="28" column="9" lean-forward="false" selection-start-line="28" selection-start-column="2" selection-end-line="28" selection-end-column="9" />
           <folding />
         </state>
       </provider>
