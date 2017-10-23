@@ -1,6 +1,3 @@
-const countries = require('./countries');
-const cities = require('./cities');
-
 const events = require('events');
 const express = require('express');
 const expressJwt = require('express-jwt');
@@ -16,6 +13,8 @@ const io = require('socket.io')(server);
 
 
 const utils = require('./utils');
+const Game = require('./game');
+const players = require('./playerUtils');
 
 const gameEvents = require('./gameEvents');
 
@@ -43,14 +42,10 @@ io.use(function(socket, next) {
     if (success) {
       socket.payload = handshakeData.decoded_token;
 
-      const playerIsRegistered = !!playersRegistered.filter((player) => {
-        return player.id === handshakeData.decoded_token;
-      })[0];
-
-      if (playerIsRegistered) {
+      if (players.playerIsActive(handshakeData.decoded_token)) {
         next();
       } else {
-        next(new Error('not a doge'))
+        next(new Error('not a doge!!'))
       }
     } else {
       //
@@ -94,10 +89,6 @@ app.use(function(err, req, res, next) {
 const playersChanged = new events.EventEmitter();
 const newGame = new events.EventEmitter();
 
-let playersActive = [];
-const playersRegistered = [];
-let gameOngoing;
-
 app.all('/api/*', function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "X-Requested-With, Content-Type, Authorization");
@@ -116,34 +107,36 @@ app.post('/api/player', (req, res) => {
     return;
   }
 
-  if (playersRegistered.filter((p) => p.id === req.body.id).length) {
+  if (players.getRegistered().filter((p) => p.id === req.body.id).length) {
     res.status(400).send('user with this name already exists');
     return;
   }
 
-  const newPlayer = {
-    id: req.body.id,
-    token: jwt.sign(req.body.id, secret),
-    expires: utils.generatePlayerExpirationDate(),
-    points: 0
-  };
+  const newPlayer = players.generateNewPlayer(req.body.id, secret);
 
-  playersRegistered.push(newPlayer);
-  playersActive.push(newPlayer);
+  players.getRegistered().push(newPlayer);
   playersChanged.emit(gameEvents.PLAYERS_CHANGED, false);
 
-  if (playersActive.length === 1 && !gameOngoing) {
+  if (players.getRegistered().length === 1 && !Game.getOngoingGame()) {
     createNewGame();
   }
 
   res.status(200).send(newPlayer);
 });
 
+app.post('/api/player/logout',
+  expressJwt({secret: secret}),
+  (req, res) => {
+
+    players.unregisterPlayer(req.user);
+    res.status(200).send();
+  });
+
 app.post('/api/game/play/answer',
   expressJwt({secret: secret}),
   (req, res) => {
 
-    const player = playersActive.filter((p) => {
+    const player = players.getRegistered().filter((p) => {
       return p.id === req.body.playerId;
     })[0];
 
@@ -154,10 +147,11 @@ app.post('/api/game/play/answer',
 
     player.expires = utils.generatePlayerExpirationDate();
 
-    if (gameOngoing) {
+    if (Game.getOngoingGame()) {
 
-      gameOngoing.plays = gameOngoing.plays.map((play) => {
+      Game.getOngoingGame().plays = Game.getOngoingGame().plays.map((play) => {
         if (play.playerId === req.body.playerId) {
+          console.log(req.body.answer);
           play.answer = req.body.answer;
         }
         return play;
@@ -175,8 +169,8 @@ const sockets = [];
 
 io.on('connection', (socket) => {
 
-  if (!playerIsActive(socket.request.decoded_token)) {
-    activatePlayer(socket.request.decoded_token);
+  if (!players.playerIsActive(socket.request.decoded_token)) {
+    players.activatePlayer(socket.request.decoded_token);
   }
 
   sockets.push(socket);
@@ -184,15 +178,15 @@ io.on('connection', (socket) => {
   socket.emit('message', {
     type: 'player',
     body: {
-      players: playersActive
+      players: players.getRegistered()
     }
   });
 
-  if (gameOngoing) {
+  if (Game.getOngoingGame()) {
     socket.emit('message', {
       type: 'game',
       body: {
-        game: gameOngoing
+        game: Game.getOngoingGame()
       }
     });
   }
@@ -208,7 +202,7 @@ playersChanged.on(gameEvents.PLAYERS_CHANGED, (v) => {
     socket.emit('message', {
       type: 'player',
       body: {
-        players: playersActive
+        players: players.getRegistered()
       }
     });
   });
@@ -238,126 +232,40 @@ newGame.on(gameEvents.GAME_SOLVED, (game) => {
   });
 });
 
-const createNewGame = () => {
-  const plays = playersActive.map((p) => {
-    return {
-      playerId: p.id,
-      answer: '?'
-    }
-  });
-
-  if (plays.length) {
-
-    const alphabet = 'ABCDEFGHIJKLŁMNOPRSTUWZŻ';
-    const category = Math.random() > .5 ? 'country' : 'city';
-    const letter = alphabet.charAt(Math.random() * alphabet.length);
-
-    const endsOn = new Date();
-    endsOn.setSeconds(endsOn.getSeconds() + gameLength / 1000);
-
-    gameOngoing = {
-      plays: plays,
-      category: category,
-      letter: letter,
-      question: category === 'country' ? 'podaj państwo na literę ' + letter : 'podaj miasto w Polsce na literę ' + letter,
-      ongoing: true,
-      createdAt: new Date(),
-      endsOn: endsOn
-    };
-
-    newGame.emit(gameEvents.GAME_CHANGED, gameOngoing);
-  }
-
-  setTimeout(() => solveGame(gameOngoing), gameLength);
-};
-
 const solveGame = (game) => {
 
-  game.plays = game.plays.map((play) => {
+  if (game) {
+    Game.solveGame(game);
+    players.givePoints(game);
 
-    play.points = 0;
+    playersChanged.emit(gameEvents.PLAYERS_CHANGED);
+    newGame.emit(gameEvents.GAME_SOLVED, game);
 
-    if (play.answer.trim().charAt(0).toUpperCase() !== game.letter.toUpperCase()) {
-      return play;
-    }
-
-    if (game.category === 'country') {
-      countries.filter(country => {
-        if (play.answer.toUpperCase() === country.name_pl.toUpperCase()) {
-          play.points = 1;
-        }
-      });
-    } else if (game.category === 'city') {
-      cities.filter(city => {
-        if (play.answer.toUpperCase() === city.toUpperCase()) {
-          play.points = 1;
-        }
-      })
-    }
-
-    if (utils.checkAnswerCorrectness(play.answer, game.category)) {
-      play.points = 1;
-    }
-
-    return play;
-  });
-
-  playersActive = playersActive.map((player) => {
-    const play = game.plays.filter((play) => {
-      return play.playerId === player.id;
-    })[0];
-
-    if (play) {
-      player.points += play.points;
-    }
-
-    return player;
-  });
-
-  playersChanged.emit(gameEvents.PLAYERS_CHANGED);
-  newGame.emit(gameEvents.GAME_SOLVED, game);
+  }
 
   setTimeout(() => {
 
-    gameOngoing = null;
+    Game.setOngoingGame(null);
 
-    if (playersActive.length) {
+    if (players.getRegistered().length) {
       createNewGame()
     }
   }, timeBetweenGames)
+
 };
 
-const activatePlayer = (playerId) => {
+const createNewGame = () => {
 
-  const player = playersRegistered.filter((player) => {
-    return player.id === playerId;
-  })[0];
-
-  if (player) {
-    playersActive.push(player);
-  }
-};
-
-const playerIsActive = (playerId) => {
-  return !!playersActive.filter((player) => {
-    return player.id === playerId;
-  })[0];
-};
-
-const removeInactivePlayers = () => {
-
-  const playersNum = playersActive.length;
-  playersActive = playersActive.filter((player) => {
-
-    return new Date() <= player.expires;
-  });
-
-  if (playersNum !== playersActive.length) {
-    playersChanged.emit(gameEvents.PLAYERS_CHANGED);
-  }
+  console.log('new game');
+  Game.createNewGame(players.getRegistered(), gameLength);
+  newGame.emit(gameEvents.GAME_CHANGED, Game.getOngoingGame());
+  setTimeout(() => solveGame(Game.getOngoingGame()), gameLength);
 };
 
 
 setInterval(() => {
-  removeInactivePlayers();
+  if (players.removeInactivePlayers()) {
+    playersChanged.emit(gameEvents.PLAYERS_CHANGED);
+  }
+
 }, 200000);
