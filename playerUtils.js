@@ -56,7 +56,7 @@ module.exports = {
   getRegisteredPlayer: (playerId) => {
 
     return playersRegistered.filter((p) => {
-      return p.id == playerId;
+      return p.id === playerId;
     })[0];
   },
 

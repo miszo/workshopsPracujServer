@@ -136,9 +136,7 @@ app.post('/api/game/play/answer',
   expressJwt({secret: secret}),
   (req, res) => {
 
-    const player = players.getRegistered().filter((p) => {
-      return p.id === req.body.playerId;
-    })[0];
+    const player = players.getRegisteredPlayer(req.body.playerId);
 
     if (!player) {
       res.status(400).send('player with this playerId doesn\'t play');
@@ -151,7 +149,6 @@ app.post('/api/game/play/answer',
 
       Game.getOngoingGame().plays = Game.getOngoingGame().plays.map((play) => {
         if (play.playerId === req.body.playerId) {
-          console.log(req.body.answer);
           play.answer = req.body.answer;
         }
         return play;
@@ -178,7 +175,12 @@ io.on('connection', (socket) => {
   socket.emit('message', {
     type: 'player',
     body: {
-      players: players.getRegistered()
+      players: players.getRegistered().map((p) => {
+        return {
+          id: p.id,
+          points: p.points
+        }
+      })
     }
   });
 
