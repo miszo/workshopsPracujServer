@@ -136,7 +136,7 @@ app.post('/api/game/play/answer',
   expressJwt({secret: secret}),
   (req, res) => {
 
-    const player = players.getRegisteredPlayer(req.body.playerId);
+    const player = players.getRegisteredPlayer(req.user);
 
     if (!player) {
       res.status(400).send('player with this playerId doesn\'t play');
@@ -148,7 +148,7 @@ app.post('/api/game/play/answer',
     if (Game.getOngoingGame()) {
 
       Game.getOngoingGame().plays = Game.getOngoingGame().plays.map((play) => {
-        if (play.playerId === req.body.playerId) {
+        if (play.playerId === req.user) {
           play.answer = req.body.answer;
         }
         return play;
@@ -204,7 +204,12 @@ playersChanged.on(gameEvents.PLAYERS_CHANGED, (v) => {
     socket.emit('message', {
       type: 'player',
       body: {
-        players: players.getRegistered()
+        players: players.getRegistered().map((p) => {
+          return {
+            id: p.id,
+            points: p.points
+          }
+        })
       }
     });
   });

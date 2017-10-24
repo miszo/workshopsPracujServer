@@ -25,8 +25,7 @@ payload: none
 ANSWER
 ```path: POST /api/game/play/answer
 payload: {
-    playerId: string
-    answer
+    answer: string
 }
 ```
 
