@@ -43,7 +43,7 @@ module.exports = {
   },
   solveGame: (game) => {
 
-    console.log(game.plays);
+    game.ongoing = false;
     game.plays = game.plays.map((play) => assessPlay(game, play));
 
     return game;

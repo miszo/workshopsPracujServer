@@ -91,3 +91,27 @@ message type PLAYER:
 }
 
 ```
+
+message type SOLUTION:
+```
+{
+    type: 'solution',
+    body: {
+        game: {
+            plays: [
+                {
+                    playerId: string,
+                    answer: string
+                    points: number
+                }
+            ],
+            category: string,
+            letter: string,
+            question: string,
+            ongoing: boolean,
+            createdAt: string (Date),
+            endsOn: string (Date)
+        }
+    }
+}
+```
