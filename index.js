@@ -3,6 +3,7 @@ const express = require('express');
 const expressJwt = require('express-jwt');
 const socketioJwt = require('socketio-jwt');
 const jwt = require('jsonwebtoken');
+const logger = require('morgan');
 
 const bodyParser = require('body-parser');
 
@@ -11,6 +12,8 @@ const app = express();
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
 
+// Logging every request to API using morgan
+app.use(logger('dev'));
 
 const utils = require('./utils');
 const Game = require('./game');
